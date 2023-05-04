@@ -146,112 +146,138 @@ jobs:
           cd build
           ctest --verbose
 
-  windows-latest-cmake:
-    runs-on: windows-latest
+  windows-mingw:
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
         include:
           - build: 'avx'
             defines: '-DLLAMA_AVX=ON -DLLAMA_AVX2=OFF -DLLAMA_OPENBLAS=ON'
-            openblas: '-DTARGET=SANDYBRIDGE -DDYNAMIC_LIST="BULLDOZER;PILEDRIVER;STEAMROLLER"'
+            openblas: '-DTARGET=SANDYBRIDGE'
           - build: 'avx2'
             defines: '-DLLAMA_AVX=ON -DLLAMA_AVX2=ON -DLLAMA_OPENBLAS=ON'
-            openblas: '-DTARGET=HASWELL -DDYNAMIC_LIST=ZEN'
+            openblas: '-DTARGET=HASWELL'
           - build: 'avx512'
             defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON'
-            openblas: '-DTARGET=SKYLAKEX -DDYNAMIC_LIST="COOPERLAKE;ZEN"'
-          - build: 'opencl'
-            defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP/clblast"'
-            openblas: ''
+            openblas: '-DTARGET=SKYLAKEX'
+          #- build: 'opencl'
+          #  defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP/clblast"'
+          #  openblas: ''
 
     steps:
       - name: Clone
         id: checkout
         uses: actions/checkout@v1
 
-      - name: Download OpenCL SDK
-        id: get_opencl
-        if: ${{ matrix.build == 'opencl' }}
+      - name: Install packages
         run: |
-          curl.exe -o $env:RUNNER_TEMP/opencl.zip -L https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.04.17/OpenCL-SDK-v2023.04.17-Win-x64.zip
-          mkdir $env:RUNNER_TEMP/opencl
-          tar.exe -xvf $env:RUNNER_TEMP/opencl.zip --strip-components=1 -C $env:RUNNER_TEMP/opencl
+          sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake build-essential curl zip
+          tee ~/toolchain.cmake <<EOF
+          # the name of the target operating system
+          set(CMAKE_SYSTEM_NAME Windows)
+          set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
-      - name: Download CLBlast
-        id: get_clblast
-        if: ${{ matrix.build == 'opencl' }}
-        run: |
-          curl.exe -o $env:RUNNER_TEMP/clblast.zip -L https://github.com/CNugteren/CLBlast/releases/download/1.5.3/CLBlast-1.5.3-Windows-x64.zip
-          curl.exe -o $env:RUNNER_TEMP/CLBlast.LICENSE.txt -L https://github.com/CNugteren/CLBlast/raw/1.5.3/LICENSE
-          mkdir $env:RUNNER_TEMP/clblast
-          tar.exe -xvf $env:RUNNER_TEMP/clblast.zip -C $env:RUNNER_TEMP/clblast
-          foreach ($f in (gci -Recurse -Path "$env:RUNNER_TEMP/clblast" -Filter '*.cmake')) {
-            $txt = Get-Content -Path $f -Raw
-            $txt.Replace('C:/dependencies/opencl/', "$($env:RUNNER_TEMP.Replace('\','/'))/opencl/") | Set-Content -Path $f -Encoding UTF8
-          }
+          # which compilers to use for C and C++
+          set(CMAKE_C_COMPILER   /usr/bin/x86_64-w64-mingw32-gcc-posix)
+          set(CMAKE_CXX_COMPILER /usr/bin/x86_64-w64-mingw32-g++-posix)
+
+          # where is the target environment located
+          set(CMAKE_FIND_ROOT_PATH  /usr/x86_64-w64-mingw32 /dist)
+
+          # adjust the default behavior of the FIND_XXX() commands:
+          # search programs in the host environment
+          set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+
+          # search headers and libraries in the target environment
+          set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+          set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+          EOF
+
+      #- name: Download OpenCL SDK
+      #  id: get_opencl
+      #  if: ${{ matrix.build == 'opencl' }}
+      #  run: |
+      #    curl.exe -o $env:RUNNER_TEMP/opencl.zip -L https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.04.17/OpenCL-SDK-v2023.04.17-Win-x64.zip
+      #    mkdir $env:RUNNER_TEMP/opencl
+      #    tar.exe -xvf $env:RUNNER_TEMP/opencl.zip --strip-components=1 -C $env:RUNNER_TEMP/opencl
+
+      #- name: Download CLBlast
+      #  id: get_clblast
+      #  if: ${{ matrix.build == 'opencl' }}
+      #  run: |
+      #    curl.exe -o $env:RUNNER_TEMP/clblast.zip -L https://github.com/CNugteren/CLBlast/releases/download/1.5.3/CLBlast-1.5.3-Windows-x64.zip
+      #    curl.exe -o $env:RUNNER_TEMP/CLBlast.LICENSE.txt -L https://github.com/CNugteren/CLBlast/raw/1.5.3/LICENSE
+      #    mkdir $env:RUNNER_TEMP/clblast
+      #    tar.exe -xvf $env:RUNNER_TEMP/clblast.zip -C $env:RUNNER_TEMP/clblast
+      #    foreach ($f in (gci -Recurse -Path "$env:RUNNER_TEMP/clblast" -Filter '*.cmake')) {
+      #      $txt = Get-Content -Path $f -Raw
+      #      $txt.Replace('C:/dependencies/opencl/', "$($env:RUNNER_TEMP.Replace('\','/'))/opencl/") | Set-Content -Path $f -Encoding UTF8
+      #    }
 
       - name: Download OpenBLAS
         id: get_openblas
         if: ${{ matrix.build != 'opencl' }}
         run: |
-          curl.exe -o $env:RUNNER_TEMP/openblas.tar.gz -L https://github.com/xianyi/OpenBLAS/releases/download/v0.3.23/OpenBLAS-0.3.23.tar.gz
-          mkdir $env:RUNNER_TEMP/openblas
-          tar.exe -xvf $env:RUNNER_TEMP/openblas.tar.gz --strip-components=1 -C $env:RUNNER_TEMP/openblas
+          curl -o ~/openblas.tar.gz -L https://github.com/xianyi/OpenBLAS/releases/download/v0.3.23/OpenBLAS-0.3.23.tar.gz
+          mkdir ~/openblas
+          tar.exe -xvf ~/openblas.tar.gz --strip-components=1 -C ~/openblas
 
       - name: Build OpenBLAS
         id: build_openblas
         if: ${{ matrix.build != 'opencl' }}
         run: |
-          cmake -B $env:RUNNER_TEMP/openblas/build -S $env:RUNNER_TEMP/openblas `
-            -DBUILD_SINGLE=ON -DBUILD_DOUBLE=OFF -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=OFF -DBUILD_BFLOAT16=OFF `
-            -DBUILD_RELAPACK=OFF -DBUILD_LAPACK_DEPRECATED=OFF -DBUILD_WITHOUT_LAPACK=ON -DBUILD_WITHOUT_CBLAS=OFF `
-            -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$env:RUNNER_TEMP/openblas/install" `
-            -DUSE_THREAD=ON -DNUM_THREADS=64 -DDYNAMIC_ARCH=ON -DDYNAMIC_OLDER=OFF `
+          cmake -B ~/openblas/build -S ~/openblas \
+            -DCMAKE_TOOLCHAIN_FILE=~/toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SINGLE=ON -DBUILD_DOUBLE=OFF -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=OFF -DBUILD_BFLOAT16=OFF \
+            -DBUILD_RELAPACK=OFF -DBUILD_LAPACK_DEPRECATED=OFF -DBUILD_WITHOUT_LAPACK=ON -DBUILD_WITHOUT_CBLAS=OFF \
+            -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=~/install \
+            -DUSE_THREAD=ON -DNUM_THREADS=64 \
             ${{ matrix.openblas }}
-          cmake --build   $env:RUNNER_TEMP/openblas/build --config Release
-          cmake --install $env:RUNNER_TEMP/openblas/build --config Release
+          cmake --build   ~/openblas/build
+          cmake --install ~/openblas/build
 
       - name: Build
         id: cmake_build
         run: |
           mkdir build
           cd build
-          cmake .. ${{ matrix.defines }} -DBLAS_LIBRARIES="/LIBPATH:$env:RUNNER_TEMP/openblas/install/lib" -DOPENBLAS_INC="$env:RUNNER_TEMP/openblas/install/include"
+          cmake .. ${{ matrix.defines }} -DBLAS_LIBRARIES="-L~/install/lib" -DOPENBLAS_INC="~/install/include/openblas"
           cmake --build . --config Release
+          x86_64-w64-mingw32-strip ./bin/*.exe
 
-      - name: Add clblast.dll
-        id: add_clblast_dll
-        if: ${{ matrix.build == 'opencl' }}
-        run: |
-          cp $env:RUNNER_TEMP/clblast/lib/clblast.dll ./build/bin/Release
-          cp $env:RUNNER_TEMP/CLBlast.LICENSE.txt ./build/bin/Release
+      #- name: Add clblast.dll
+      #  id: add_clblast_dll
+      #  if: ${{ matrix.build == 'opencl' }}
+      #  run: |
+      #    cp $env:RUNNER_TEMP/clblast/lib/clblast.dll ./build/bin/Release
+      #    cp $env:RUNNER_TEMP/CLBlast.LICENSE.txt ./build/bin/Release
 
       - name: Add OpenBLAS license
         id: add_openblas_license
         if: ${{ matrix.build != 'opencl' }}
         run: |
-          cp $env:RUNNER_TEMP/openblas/LICENSE ./build/bin/Release/OpenBLAS.LICENSE.txt
+          cp ~/openblas/LICENSE ./build/bin/OpenBLAS.LICENSE.txt
 
-      - name: Check AVX512F support
-        id: check_avx512f
-        if: ${{ matrix.build == 'avx512' }}
-        continue-on-error: true
-        run: |
-          cd build
-          $vcdir = $(vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
-          $msvc = $(join-path $vcdir $('VC\Tools\MSVC\'+$(gc -raw $(join-path $vcdir 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt')).Trim()))
-          $cl =  $(join-path $msvc 'bin\Hostx64\x64\cl.exe')
-          echo 'int main(void){unsigned int a[4];__cpuid(a,7);return !(a[1]&65536);}' >> avx512f.c
-          & $cl /O2 /GS- /kernel avx512f.c /link /nodefaultlib /entry:main
-          .\avx512f.exe && echo "AVX512F: YES" && ( echo HAS_AVX512F=1 >> $env:GITHUB_ENV ) || echo "AVX512F: NO"
+      #- name: Check AVX512F support
+      #  id: check_avx512f
+      #  if: ${{ matrix.build == 'avx512' }}
+      #  continue-on-error: true
+      #  run: |
+      #    cd build
+      #    $vcdir = $(vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
+      #    $msvc = $(join-path $vcdir $('VC\Tools\MSVC\'+$(gc -raw $(join-path $vcdir 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt')).Trim()))
+      #    $cl =  $(join-path $msvc 'bin\Hostx64\x64\cl.exe')
+      #    echo 'int main(void){unsigned int a[4];__cpuid(a,7);return !(a[1]&65536);}' >> avx512f.c
+      #    & $cl /O2 /GS- /kernel avx512f.c /link /nodefaultlib /entry:main
+      #    .\avx512f.exe && echo "AVX512F: YES" && ( echo HAS_AVX512F=1 >> $env:GITHUB_ENV ) || echo "AVX512F: NO"
 
-      - name: Test
-        id: cmake_test
-        if: ${{ matrix.build != 'opencl' && (matrix.build != 'avx512' || env.HAS_AVX512F == '1') }} # Test AVX-512 only when possible
-        run: |
-          cd build
-          ctest -C Release --verbose
+      #- name: Test
+      #  id: cmake_test
+      #  if: ${{ matrix.build != 'opencl' && (matrix.build != 'avx512' || env.HAS_AVX512F == '1') }} # Test AVX-512 only when possible
+      #  run: |
+      #    cd build
+      #    ctest -C Release --verbose
 
       - name: Get commit hash
         id: commit
@@ -262,7 +288,8 @@ jobs:
         id: pack_artifacts
         if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
         run: |
-          7z a llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.zip .\build\bin\Release\*
+          cd ./build/bin
+          zip ../../llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.zip *
 
       - name: Upload artifacts
         if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
