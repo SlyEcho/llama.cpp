@@ -221,7 +221,7 @@ jobs:
         run: |
           curl -o ~/openblas.tar.gz -L https://github.com/xianyi/OpenBLAS/releases/download/v0.3.23/OpenBLAS-0.3.23.tar.gz
           mkdir ~/openblas
-          tar.exe -xvf ~/openblas.tar.gz --strip-components=1 -C ~/openblas
+          tar -xvf ~/openblas.tar.gz --strip-components=1 -C ~/openblas
 
       - name: Build OpenBLAS
         id: build_openblas
