@@ -308,7 +308,7 @@ jobs:
       - ubuntu-latest-cmake
       - macOS-latest-make
       - macOS-latest-cmake
-      - windows-latest-cmake
+      - windows-mingw
 
     steps:
       - name: Download artifacts
