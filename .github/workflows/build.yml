@@ -156,13 +156,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - build: 'avx'
+          - build: 'openblas-avx'
             defines: '-DLLAMA_AVX=ON -DLLAMA_AVX2=OFF -DLLAMA_OPENBLAS=ON'
             openblas: '-DTARGET=SANDYBRIDGE'
-          - build: 'avx2'
+          - build: 'openblas-avx2'
             defines: '-DLLAMA_AVX=ON -DLLAMA_AVX2=ON -DLLAMA_OPENBLAS=ON'
             openblas: '-DTARGET=HASWELL'
-          - build: 'avx512'
+          - build: 'openblas-avx512'
             defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON -DCMAKE_C_FLAGS=-march=skylake-avx512'
             openblas: '-DTARGET=SKYLAKEX -DCMAKE_C_FLAGS=-march=skylake-avx512'
           - build: 'opencl'
@@ -176,7 +176,7 @@ jobs:
 
       - name: Install packages
         run: |
-          sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake build-essential curl zip
+          sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake build-essential curl 7zip
 
       - name: Create toolchain
         run: |
@@ -336,26 +336,6 @@ jobs:
         run: |
           cp ~/openblas/LICENSE "./build/bin/OpenBLAS-${OPENBLAS_VERSION}.txt"
 
-      #- name: Check AVX512F support
-      #  id: check_avx512f
-      #  if: ${{ matrix.build == 'avx512' }}
-      #  continue-on-error: true
-      #  run: |
-      #    cd build
-      #    $vcdir = $(vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
-      #    $msvc = $(join-path $vcdir $('VC\Tools\MSVC\'+$(gc -raw $(join-path $vcdir 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt')).Trim()))
-      #    $cl =  $(join-path $msvc 'bin\Hostx64\x64\cl.exe')
-      #    echo 'int main(void){unsigned int a[4];__cpuid(a,7);return !(a[1]&65536);}' >> avx512f.c
-      #    & $cl /O2 /GS- /kernel avx512f.c /link /nodefaultlib /entry:main
-      #    .\avx512f.exe && echo "AVX512F: YES" && ( echo HAS_AVX512F=1 >> $env:GITHUB_ENV ) || echo "AVX512F: NO"
-
-      #- name: Test
-      #  id: cmake_test
-      #  if: ${{ matrix.build != 'opencl' && (matrix.build != 'avx512' || env.HAS_AVX512F == '1') }} # Test AVX-512 only when possible
-      #  run: |
-      #    cd build
-      #    ctest -C Release --verbose
-
       - name: Get commit hash
         id: commit
         if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
@@ -366,7 +346,8 @@ jobs:
         if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
         run: |
           cd ./build/bin
-          zip ../../llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.zip *
+          7zz a llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.zip ./build/bin/*
+          7zz a llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.7z ./build/bin/*
 
       - name: Upload artifacts
         if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
@@ -374,6 +355,7 @@ jobs:
         with:
           path: |
             llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.zip
+            llama-${{ env.BRANCH_NAME }}-${{ steps.commit.outputs.short }}-bin-win-${{ matrix.build }}-x64.7z
 
   release:
     if: ${{ ( github.event_name == 'push' && github.ref == 'refs/heads/master' ) || github.event.inputs.create_release == 'true' }}
