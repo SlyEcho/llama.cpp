@@ -221,22 +221,32 @@ jobs:
         id: get_openblas
         if: ${{ matrix.build != 'opencl' && steps.cache-openblas.outputs.cache-hit != 'true' }}
         run: |
-          mkdir -p ~/src/openblas
+          echo "::group::Downloading OpenBLAS ${OPENBLAS_VERSION}"
+          mkdir -vp ~/src/openblas
           curl -o ~/src/openblas.tar.gz -L https://github.com/xianyi/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}.tar.gz
-          tar -xvf ~/src/openblas.tar.gz --strip-components=1 -C ~/src/openblas
+          echo "::endgroup::"
 
-      - name: Build OpenBLAS
-        id: build_openblas
-        if: ${{ matrix.build != 'opencl' && steps.cache-openblas.outputs.cache-hit != 'true' }}
-        run: |
+          echo "::group::Extracting OpenBLAS ${OPENBLAS_VERSION}"
+          tar -xvf ~/src/openblas.tar.gz --strip-components=1 -C ~/src/openblas
+          echo "::endgroup::"
+
+          echo "::group::Configuring OpenBLAS ${OPENBLAS_VERSION}"
           cmake -B ~/src/openblas/build -S ~/src/openblas \
             -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SINGLE=ON -DBUILD_DOUBLE=OFF -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=OFF -DBUILD_BFLOAT16=OFF \
             -DBUILD_RELAPACK=OFF -DBUILD_LAPACK_DEPRECATED=OFF -DBUILD_WITHOUT_LAPACK=ON -DBUILD_WITHOUT_CBLAS=OFF \
             -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF -DUSE_THREAD=ON -DNUM_THREADS=64 \
             ${{ matrix.openblas }}
+          echo "::endgroup::"
+
+          echo "::group::Building OpenBLAS ${OPENBLAS_VERSION}"
           cmake --build   ~/src/openblas/build
+          echo "::endgroup::"
+
+          echo "::group::Installing OpenBLAS ${OPENBLAS_VERSION}"
           cmake --install ~/src/openblas/build --prefix ~/openblas
+          cp -v ~/src/openblas/LICENSE ~/openblas/
+          echo "::endgroup::"
 
       - name: Build
         id: cmake_build
