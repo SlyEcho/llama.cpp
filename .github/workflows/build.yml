@@ -256,7 +256,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Extracting CLBLast"
-          tar -xvf ~/src/clblast.tar.gz --strip-components=1 -C /src/clblast
+          tar -xvf ~/src/clblast.tar.gz --strip-components=1 -C ~/src/clblast
           echo "::endgroup::"
 
           echo "::group::Configuring CLBLast"
