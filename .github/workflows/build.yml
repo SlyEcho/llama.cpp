@@ -395,7 +395,7 @@ jobs:
             const fs = require('fs');
             const release_id = '${{ steps.create_release.outputs.id }}';
             for (let file of await fs.readdirSync('./artifact')) {
-              if (path.extname(file) === '.zip') {
+              if (path.extname(file) === '.zip' || path.extname(file) === '.7z') {
                 console.log('uploadReleaseAsset', file);
                 await github.repos.uploadReleaseAsset({
                   owner: context.repo.owner,
