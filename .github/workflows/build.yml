@@ -150,6 +150,8 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       OPENBLAS_VERSION: 0.3.23
+      OPENCL_VERSION: 2023.04.17
+      CLBLAST_VERSION: 1.5.3
 
     strategy:
       matrix:
@@ -163,9 +165,9 @@ jobs:
           - build: 'avx512'
             defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON -DCMAKE_C_FLAGS=-march=skylake-avx512'
             openblas: '-DTARGET=SKYLAKEX -DCMAKE_C_FLAGS=-march=skylake-avx512'
-          #- build: 'opencl'
-          #  defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP/clblast"'
-          #  openblas: ''
+          - build: 'opencl'
+            defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$HOME/opencl;$HOME/clblast"'
+            openblas: ''
 
     steps:
       - name: Clone
@@ -189,26 +191,89 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
           EOF
 
-      #- name: Download OpenCL SDK
-      #  id: get_opencl
-      #  if: ${{ matrix.build == 'opencl' }}
-      #  run: |
-      #    curl.exe -o $env:RUNNER_TEMP/opencl.zip -L https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.04.17/OpenCL-SDK-v2023.04.17-Win-x64.zip
-      #    mkdir $env:RUNNER_TEMP/opencl
-      #    tar.exe -xvf $env:RUNNER_TEMP/opencl.zip --strip-components=1 -C $env:RUNNER_TEMP/opencl
+      - name: Cache OpenCL
+        id: cache-opencl
+        if: ${{ matrix.build == 'opencl' }}
+        uses: actions/cache@v3
+        with:
+          path: ~/opencl
+          key: OpenCL ${{ env.OPENCL_VERSION }}
 
-      #- name: Download CLBlast
-      #  id: get_clblast
-      #  if: ${{ matrix.build == 'opencl' }}
-      #  run: |
-      #    curl.exe -o $env:RUNNER_TEMP/clblast.zip -L https://github.com/CNugteren/CLBlast/releases/download/1.5.3/CLBlast-1.5.3-Windows-x64.zip
-      #    curl.exe -o $env:RUNNER_TEMP/CLBlast.LICENSE.txt -L https://github.com/CNugteren/CLBlast/raw/1.5.3/LICENSE
-      #    mkdir $env:RUNNER_TEMP/clblast
-      #    tar.exe -xvf $env:RUNNER_TEMP/clblast.zip -C $env:RUNNER_TEMP/clblast
-      #    foreach ($f in (gci -Recurse -Path "$env:RUNNER_TEMP/clblast" -Filter '*.cmake')) {
-      #      $txt = Get-Content -Path $f -Raw
-      #      $txt.Replace('C:/dependencies/opencl/', "$($env:RUNNER_TEMP.Replace('\','/'))/opencl/") | Set-Content -Path $f -Encoding UTF8
-      #    }
+      - name: Download and build OpenCL SDK
+        id: get_opencl
+        if: ${{ matrix.build == 'opencl' && steps.cache-opencl.outputs.cache-hit != 'true' }}
+        run: |
+          echo "::group::Downloading OpenCL SDK ${OPENCL_VERSION}"
+          mkdir -p \
+            ~/src/opencl \
+            ~/src/opencl/external/OpenCL-CLHPP \
+            ~/src/opencl/external/OpenCL-Headers \
+            ~/src/opencl/external/OpenCL-ICD-Loader
+
+          curl -L -o ~/src/OpenCL-SDK.tar.gz "https://github.com/KhronosGroup/OpenCL-SDK/archive/refs/tags/v${OPENCL_VERSION}.tar.gz"
+          curl -L -o ~/src/OpenCL-CLHPP.tar.gz "https://github.com/KhronosGroup/OpenCL-CLHPP/archive/refs/tags/v${OPENCL_VERSION}.tar.gz"
+          curl -L -o ~/src/OpenCL-Headers.tar.gz "https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v${OPENCL_VERSION}.tar.gz"
+          curl -L -o ~/src/OpenCL-ICD-Loader.tar.gz "https://github.com/KhronosGroup/OpenCL-ICD-Loader/archive/refs/tags/v${OPENCL_VERSION}.tar.gz"
+          echo "::endgroup::"
+
+          echo "::group::Extracting OpenCL SDK"
+          tar -xvf ~/src/OpenCL-SDK.tar.gz --strip-components=1 -C ~/src/opencl && \
+          tar -xvf ~/src/OpenCL-CLHPP.tar.gz --strip-components=1 -C ~/src/opencl/external/OpenCL-CLHPP && \
+          tar -xvf ~/src/OpenCL-Headers.tar.gz --strip-components=1 -C ~/src/opencl/external/OpenCL-Headers && \
+          tar -xvf ~/src/OpenCL-ICD-Loader.tar.gz --strip-components=1 -C ~/src/opencl/external/OpenCL-ICD-Loader
+          echo "::endgroup::"
+
+          echo "::group::Configuring OpenCL SDK"
+          cmake -B ~/src/opencl/build -S ~/src/opencl \
+              -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF \
+              -DOPENCL_SDK_BUILD_SAMPLES=OFF -DOPENCL_SDK_TEST_SAMPLES=OFF
+          echo "::endgroup::"
+
+          echo "::group::Building OpenCL SDK"
+          cmake --build ~/src/opencl/build
+          echo "::endgroup::"
+
+          echo "::group::Installing OpenCL SDK"
+          cmake --install ~/src/opencl/build --prefix ~/opencl
+          echo "::endgroup::"
+
+      - name: Cache CLBlast
+        id: cache-clblast
+        if: ${{ matrix.build == 'opencl' }}
+        uses: actions/cache@v3
+        with:
+          path: ~/clblast
+          key: CLBlast ${{ env.CLBLAST_VERSION }}
+
+      - name: Download and build CLBlast
+        id: get_clblast
+        if: ${{ matrix.build == 'opencl' && steps.cache-clblast.outputs.cache-hit != 'true' }}
+        run: |
+          echo "::group::Downloading CLBLast ${CLBLAST_VERSION}"
+          mkdir -p ~/src/clblast
+          curl -L -o ~/src/clblast.tar.gz "https://github.com/CNugteren/CLBlast/archive/refs/tags/${CLBLAST_VERSION}.tar.gz"
+          echo "::endgroup::"
+
+          echo "::group::Extracting CLBLast"
+          tar -xvf ~/src/clblast.tar.gz --strip-components=1 -C /src/clblast
+          echo "::endgroup::"
+
+          echo "::group::Configuring CLBLast"
+          cmake -B ~/src/clblast/build -S ~/src/clblast \
+              -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release\
+              -DCMAKE_PREFIX_PATH="$HOME/opencl" \
+              -DTUNERS=OFF -DBUILD_SHARED_LIBS=OFF
+          echo "::endgroup::"
+
+          echo "::group::Building CLBLast"
+          cmake --build ~/src/clblast/build
+          echo "::endgroup::"
+
+          echo "::group::Installing CLBLast"
+          cmake --install ~/src/clblast/build --prefix ~/clblast
+          cp -v ~/src/clblast/LICENSE ~/clblast/
+          echo "::endgroup::"
 
       - name: Cache OpenBLAS
         id: cache-openblas
@@ -227,11 +292,11 @@ jobs:
           curl -o ~/src/openblas.tar.gz -L https://github.com/xianyi/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}.tar.gz
           echo "::endgroup::"
 
-          echo "::group::Extracting OpenBLAS ${OPENBLAS_VERSION}"
+          echo "::group::Extracting OpenBLAS"
           tar -xvf ~/src/openblas.tar.gz --strip-components=1 -C ~/src/openblas
           echo "::endgroup::"
 
-          echo "::group::Configuring OpenBLAS ${OPENBLAS_VERSION}"
+          echo "::group::Configuring OpenBLAS"
           cmake -B ~/src/openblas/build -S ~/src/openblas \
             -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SINGLE=ON -DBUILD_DOUBLE=OFF -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=OFF -DBUILD_BFLOAT16=OFF \
@@ -240,11 +305,11 @@ jobs:
             ${{ matrix.openblas }}
           echo "::endgroup::"
 
-          echo "::group::Building OpenBLAS ${OPENBLAS_VERSION}"
+          echo "::group::Building OpenBLAS"
           cmake --build   ~/src/openblas/build
           echo "::endgroup::"
 
-          echo "::group::Installing OpenBLAS ${OPENBLAS_VERSION}"
+          echo "::group::Installing OpenBLAS"
           cmake --install ~/src/openblas/build --prefix ~/openblas
           cp -v ~/src/openblas/LICENSE ~/openblas/
           echo "::endgroup::"
@@ -262,15 +327,12 @@ jobs:
           cmake --build . --config Release
           x86_64-w64-mingw32-strip ./bin/*.exe
 
-      #- name: Add clblast.dll
-      #  id: add_clblast_dll
-      #  if: ${{ matrix.build == 'opencl' }}
-      #  run: |
-      #    cp $env:RUNNER_TEMP/clblast/lib/clblast.dll ./build/bin/Release
-      #    cp $env:RUNNER_TEMP/CLBlast.LICENSE.txt ./build/bin/Release
+      - name: Add CLBlast license
+        if: ${{ matrix.build == 'opencl' }}
+        run: |
+          cp ~/clblast/LICENSE "./build/bin/CLBlast-${CLBLAST_VERSION}.txt"
 
       - name: Add OpenBLAS license
-        id: add_openblas_license
         if: ${{ matrix.build != 'opencl' }}
         run: |
           cp ~/openblas/LICENSE "./build/bin/OpenBLAS-${OPENBLAS_VERSION}.txt"
