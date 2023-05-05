@@ -166,7 +166,7 @@ jobs:
             defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON -DCMAKE_C_FLAGS=-march=skylake-avx512'
             openblas: '-DTARGET=SKYLAKEX -DCMAKE_C_FLAGS=-march=skylake-avx512'
           - build: 'opencl'
-            defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$HOME/opencl;$HOME/clblast"'
+            defines: '-DLLAMA_CLBLAST=ON'
             openblas: ''
 
     steps:
@@ -180,12 +180,12 @@ jobs:
 
       - name: Create toolchain
         run: |
-          tee ~/toolchain.cmake <<EOF
+          tee ~/toolchain.cmake <<'EOF'
           set(CMAKE_SYSTEM_NAME Windows)
           set(CMAKE_SYSTEM_PROCESSOR x86_64)
           set(CMAKE_C_COMPILER   /usr/bin/x86_64-w64-mingw32-gcc-posix)
           set(CMAKE_CXX_COMPILER /usr/bin/x86_64-w64-mingw32-g++-posix)
-          set(CMAKE_FIND_ROOT_PATH  /usr/x86_64-w64-mingw32)
+          set(CMAKE_FIND_ROOT_PATH  /usr/x86_64-w64-mingw32 $HOME/opencl $HOME/clblast $HOME/openblas)
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -262,7 +262,6 @@ jobs:
           echo "::group::Configuring CLBLast"
           cmake -B ~/src/clblast/build -S ~/src/clblast \
               -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release\
-              -DCMAKE_PREFIX_PATH="$HOME/opencl" \
               -DTUNERS=OFF -DBUILD_SHARED_LIBS=OFF
           echo "::endgroup::"
 
