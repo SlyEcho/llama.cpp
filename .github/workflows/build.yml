@@ -256,7 +256,7 @@ jobs:
           cd build
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF -DLLAMA_STATIC=ON \
+            -DBUILD_SHARED_LIBS=OFF -DLLAMA_STATIC=ON -DCMAKE_EXE_LINKER_FLAGS="-Wl,--allow-multiple-definition" \
             -DBLAS_LIBRARIES="-L$HOME/openblas/lib" -DOPENBLAS_INC="$HOME/openblas/include/openblas" \
             ${{ matrix.defines }}
           cmake --build . --config Release
