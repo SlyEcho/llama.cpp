@@ -159,7 +159,7 @@ jobs:
             defines: '-DLLAMA_AVX=ON -DLLAMA_AVX2=ON -DLLAMA_OPENBLAS=ON'
             openblas: '-DTARGET=HASWELL'
           - build: 'avx512'
-            defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON'
+            defines: '-DLLAMA_AVX512=ON -DBUILD_SHARED_LIBS=ON -DLLAMA_OPENBLAS=ON' -DCMAKE_C_FLAGS=-march=skylake-avx512'
             openblas: '-DTARGET=SKYLAKEX -DCMAKE_C_FLAGS=-march=skylake-avx512'
           #- build: 'opencl'
           #  defines: '-DLLAMA_CLBLAST=ON -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP/clblast"'
@@ -232,7 +232,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. ${{ matrix.defines }} -DBLAS_LIBRARIES="-L~/install/lib" -DOPENBLAS_INC="~/install/include/openblas"
+          cmake .. ${{ matrix.defines }} -DBLAS_LIBRARIES="-L$HOME/install/lib" -DOPENBLAS_INC="$HOME/install/include/openblas"
           cmake --build . --config Release
           x86_64-w64-mingw32-strip ./bin/*.exe
 
