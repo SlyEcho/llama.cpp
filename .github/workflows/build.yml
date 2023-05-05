@@ -215,7 +215,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/openblas
-          key: OpenBLAS ${{ env.OPENBLAS_VERSION }}, ${{ matrix.openblas }}
+          key: OpenBLAS ${{ env.OPENBLAS_VERSION }} ${{ matrix.openblas }}
 
       - name: Download OpenBLAS
         id: get_openblas
@@ -233,8 +233,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SINGLE=ON -DBUILD_DOUBLE=OFF -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=OFF -DBUILD_BFLOAT16=OFF \
             -DBUILD_RELAPACK=OFF -DBUILD_LAPACK_DEPRECATED=OFF -DBUILD_WITHOUT_LAPACK=ON -DBUILD_WITHOUT_CBLAS=OFF \
-            -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF \
-            -DUSE_THREAD=ON -DNUM_THREADS=64 \
+            -DBUILD_STATIC_LIBS=ON -DBUILD_TESTING=OFF -DUSE_THREAD=ON -DNUM_THREADS=64 \
             ${{ matrix.openblas }}
           cmake --build   ~/src/openblas/build
           cmake --install ~/src/openblas/build --prefix ~/openblas
