@@ -212,12 +212,13 @@ jobs:
 
       - name: Cache OpenBLAS
         id: cache-openblas
+        if: ${{ matrix.build != 'opencl' }}
         uses: actions/cache@v3
         with:
           path: ~/openblas
           key: OpenBLAS ${{ env.OPENBLAS_VERSION }} ${{ matrix.openblas }}
 
-      - name: Download OpenBLAS
+      - name: Download and build OpenBLAS
         id: get_openblas
         if: ${{ matrix.build != 'opencl' && steps.cache-openblas.outputs.cache-hit != 'true' }}
         run: |
@@ -254,7 +255,7 @@ jobs:
           mkdir build
           cd build
           cmake .. \
-            -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$HOME/toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DLLAMA_STATIC=ON \
             -DBLAS_LIBRARIES="-L$HOME/openblas/lib" -DOPENBLAS_INC="$HOME/openblas/include/openblas" \
             ${{ matrix.defines }}
           cmake --build . --config Release
