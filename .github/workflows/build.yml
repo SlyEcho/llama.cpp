@@ -211,7 +211,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. ${{ matrix.defines }}
+          cmake .. ${{ matrix.defines }} -DLLAMA_BUILD_SERVER=ON
           cmake --build . --config Release
           cp ../LICENSE ./bin/Release/llama.cpp.txt
 
@@ -292,7 +292,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DLLAMA_CUBLAS=ON
+          cmake .. -DLLAMA_CUBLAS=ON -DLLAMA_BUILD_SERVER=ON
           cmake --build . --config Release
 
       - name: Get commit hash

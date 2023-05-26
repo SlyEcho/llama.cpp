@@ -16,6 +16,8 @@ elif [[ $arg1 == '--quantize' || $arg1 == '-q' ]]; then
     ./quantize $arg2
 elif [[ $arg1 == '--run' || $arg1 == '-r' ]]; then
     ./main $arg2
+elif [[ $arg1 == '--serve' || $arg1 == '-s' ]]; then
+    ./server $arg2
 elif [[ $arg1 == '--all-in-one' || $arg1 == '-a' ]]; then
     echo "Converting PTH to GGML..."
     for i in `ls $1/$2/ggml-model-f16.bin*`; do
@@ -35,6 +37,8 @@ else
     echo "              ex: \"/models/7B/\" 1"
     echo "  --quantize (-q): Optimize with quantization process ggml"
     echo "              ex: \"/models/7B/ggml-model-f16.bin\" \"/models/7B/ggml-model-q4_0.bin\" 2"
+    echo "  --serve (-s): Run the server"
+    echo "              ex: -m /models/7B/ggml-model-q4_0.bin -host 0.0.0.0 -port 8080"
     echo "  --all-in-one (-a): Execute --convert & --quantize"
     echo "              ex: \"/models/\" 7B"
 fi

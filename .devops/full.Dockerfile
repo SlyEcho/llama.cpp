@@ -14,6 +14,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN make
+RUN make && make server
 
 ENTRYPOINT ["/app/.devops/tools.sh"]
