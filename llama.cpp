@@ -10,7 +10,7 @@
 #include "llama.h"
 
 #include "ggml.h"
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
 #include "ggml-cuda.h"
 #elif defined(GGML_USE_CLBLAST)
 #include "ggml-opencl.h"
@@ -175,7 +175,7 @@ struct llama_kv_cache {
             ggml_free(ctx);
         }
 
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
         ggml_cuda_free_data(k);
         ggml_cuda_free_data(v);
 #endif // GGML_USE_CUBLAS
@@ -234,7 +234,7 @@ struct llama_model {
             ggml_free(ctx);
         }
 
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
         for (size_t i = 0; i < tensors_by_name.size(); ++i) {
             ggml_cuda_free_data(tensors_by_name[i].second);
         }
@@ -800,7 +800,7 @@ struct llama_model_loader {
                         lmlock->grow_to(lock_size);
                     }
                     break;
-#if defined(GGML_USE_CUBLAS)
+#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
                 case GGML_BACKEND_GPU:
                 case GGML_BACKEND_GPU_SPLIT:
                     ggml_cuda_transform_tensor(lt.data, lt.ggml_tensor);
@@ -920,7 +920,7 @@ static bool kv_cache_init(
     ggml_set_name(cache.v, "cache_v");
 
     (void) n_gpu_layers;
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
     if (n_gpu_layers > n_layer + 1) {
         ggml_cuda_assign_buffers_no_scratch(cache.v);
     }
@@ -1150,7 +1150,7 @@ static void llama_model_load_internal(
     }
 
     (void) main_gpu;
-#if defined(GGML_USE_CUBLAS)
+#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
     fprintf(stderr, "%s: using CUDA for GPU acceleration\n", __func__);
     ggml_cuda_set_main_device(main_gpu);
 #define LLAMA_BACKEND_OFFLOAD       GGML_BACKEND_GPU
@@ -1261,7 +1261,7 @@ static void llama_model_load_internal(
 
         (void) vram_scratch;
         (void) n_batch;
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
         if (low_vram) {
             fprintf(stderr, "%s: not allocating a VRAM scratch buffer due to low VRAM option\n", __func__);
             ggml_cuda_set_scratch_size(0); // disable scratch
@@ -1274,7 +1274,7 @@ static void llama_model_load_internal(
             }
         }
 #endif // GGML_USE_CUBLAS
-#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_CLBLAST)
+#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS) || defined(GGML_USE_CLBLAST)
         const int n_gpu = std::min(n_gpu_layers, int(hparams.n_layer));
 
         fprintf(stderr, "%s: offloading %d repeating layers to GPU\n", __func__, n_gpu);
@@ -1314,7 +1314,7 @@ static void llama_model_load_internal(
     }
 
     (void) tensor_split;
-#if defined(GGML_USE_CUBLAS)
+#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
     {
         ggml_cuda_set_tensor_split(tensor_split);
     }
@@ -1435,7 +1435,7 @@ static bool llama_eval_internal(
     offload_func_t offload_func_kq = llama_nop;
     offload_func_t offload_func_v  = llama_nop;
 
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
         if (n_gpu_layers > n_layer) {
             offload_func_nr = ggml_cuda_assign_buffers;
         }
@@ -1450,7 +1450,7 @@ static bool llama_eval_internal(
     for (int il = 0; il < n_layer; ++il) {
         offload_func_t offload_func = llama_nop;
 
-#ifdef GGML_USE_CUBLAS
+#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
         if (il >= i_gpu_start) {
             offload_func = ggml_cuda_assign_buffers;
         }
