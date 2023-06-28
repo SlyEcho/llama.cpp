@@ -304,7 +304,7 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
                 invalid_param = true;
                 break;
             }
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             params.main_gpu = std::stoi(argv[i]);
 #else
       fprintf(stderr, "warning: llama.cpp was compiled without cuBLAS. It is not possible to set a main GPU.\n");
@@ -314,7 +314,7 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
                 invalid_param = true;
                 break;
             }
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             std::string arg_next = argv[i];
 
             // split string by , and /
@@ -334,7 +334,7 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
       fprintf(stderr, "warning: llama.cpp was compiled without cuBLAS. It is not possible to set a tensor split.\n");
 #endif // GGML_USE_CUBLAS
         } else if (arg == "--low-vram" || arg == "-lv") {
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             params.low_vram = true;
 #else
       fprintf(stderr, "warning: llama.cpp was compiled without cuBLAS. It is not possible to set lower vram usage.\n");
@@ -414,7 +414,7 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
         exit(1);
     }
 
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
     if (!params.lora_adapter.empty() && params.n_gpu_layers > 0) {
         fprintf(stderr, "%s: error: the simultaneous use of LoRAs and GPU acceleration is not supported", __func__);
         exit(1);

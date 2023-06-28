@@ -201,11 +201,9 @@ inline static void* ggml_aligned_malloc(size_t size) {
 #endif
 #elif defined(GGML_USE_OPENBLAS)
 #include <cblas.h>
-#endif
-#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
+#elif defined(GGML_USE_CUBLAS) | defined(GGML_USE_HIPBLAS)
 #include "ggml-cuda.h"
-#endif
-#if defined(GGML_USE_CLBLAST)
+#elif defined(GGML_USE_CLBLAST)
 #include "ggml-opencl.h"
 #endif
 
@@ -4142,7 +4140,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
             GGML_PRINT_DEBUG("%s: g_state initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
         }
 
-#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
+#if defined(GGML_USE_CUBLAS)
         ggml_init_cublas();
 #elif defined(GGML_USE_CLBLAST)
         ggml_cl_init();
@@ -15193,7 +15191,7 @@ static void ggml_compute_forward_cross_entropy_loss_back(
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
 
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
     bool skip_cpu = ggml_cuda_compute_forward(params, tensor);
     if (skip_cpu) {
         return;
@@ -16701,7 +16699,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
 
                         size_t cur = 0;
 
-#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS)
+#if defined(GGML_USE_CUBLAS)
                         if (ggml_cuda_can_mul_mat(node->src0, node->src1, node)) {
                             node->n_tasks = 1; // TODO: this actually is doing nothing
                                                 //       the threads are still spinning
@@ -19005,7 +19003,7 @@ int ggml_cpu_has_wasm_simd(void) {
 }
 
 int ggml_cpu_has_blas(void) {
-#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS) || defined(GGML_USE_CUBLAS) || defined(GGML_USE_HIPBLAS) || defined(GGML_USE_CLBLAST)
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS) || defined(GGML_USE_CUBLAS) || defined(GGML_USE_CLBLAST)
     return 1;
 #else
     return 0;

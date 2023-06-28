@@ -565,7 +565,7 @@ static void server_params_parse(int argc, char ** argv, server_params & sparams,
                 invalid_param = true;
                 break;
             }
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             std::string arg_next = argv[i];
 
             // split string by , and /
@@ -588,7 +588,7 @@ static void server_params_parse(int argc, char ** argv, server_params & sparams,
         }
         else if (arg == "--low-vram" || arg == "-lv")
         {
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             params.low_vram = true;
 #else
             fprintf(stderr, "warning: llama.cpp was compiled without cuBLAS. It is not possible to set lower vram usage.\n");
@@ -599,7 +599,7 @@ static void server_params_parse(int argc, char ** argv, server_params & sparams,
                 invalid_param = true;
                 break;
             }
-#if defined GGML_USE_CUBLAS || defined GGML_USE_HIPBLAS
+#ifdef GGML_USE_CUBLAS
             params.main_gpu = std::stoi(argv[i]);
 #else
             LOG_WARNING("llama.cpp was compiled without cuBLAS. It is not possible to set a main GPU.", {});
