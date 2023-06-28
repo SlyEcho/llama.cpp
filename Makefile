@@ -21,8 +21,8 @@ ifndef UNAME_M
 UNAME_M := $(shell uname -m)
 endif
 
-CCV  = $(shell $(CC)  --version | head -n 1)
-CXXV = $(shell $(CXX) --version | head -n 1)
+CCV := $(shell $(CC) --version | head -n 1)
+CXXV := $(shell $(CXX) --version | head -n 1)
 
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
