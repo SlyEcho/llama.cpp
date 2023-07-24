@@ -2535,7 +2535,6 @@ void ggml_init_cublas() {
 #ifdef GGML_USE_HIPBLAS
     rocblas_initialize();
     hipDeviceSynchronize();
-    fprintf(stderr, "hipBLAS INITIALIZED\n");
 #endif
         CUDA_CHECK(cudaGetDeviceCount(&g_device_count));
         GGML_ASSERT(g_device_count <= GGML_CUDA_MAX_DEVICES);
